@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from config.settings import AppConfig
 from numpy.random import Generator, default_rng
+from simulator.event_models import PatientType
 
 
 class PoissonArrivalProcess:
@@ -88,3 +89,53 @@ class PoissonArrivalProcess:
             arrivals.append(current_time)
 
         return arrivals
+
+    def generate_patient_arrivals(
+        self,
+        start_time: datetime,
+        end_time: datetime,
+        patient_type_rates: dict[PatientType, float],
+    ) -> list[tuple[datetime, PatientType]]:
+        """Generate arrivals and assign each one a patient type."""
+
+        if not patient_type_rates:
+            raise ValueError("patient_type_rates must not be empty")
+
+        total_rate = sum(patient_type_rates.values())
+
+        if total_rate <= 0:
+            raise ValueError("Total patient arrival rate must be greater than 0")
+
+        arrivals: list[tuple[datetime, PatientType]] = []
+
+        current_time = start_time
+
+        while True:
+            interarrival_hours = self.rng.exponential(
+                scale=1 / total_rate
+            )
+
+            current_time = current_time + timedelta(
+                hours=interarrival_hours
+            )
+
+            if current_time > end_time:
+                break
+
+            patient_types = list(patient_type_rates.keys())
+            rates = list(patient_type_rates.values())
+
+            selected_index = self.rng.choice(
+                len(patient_types),
+                p=[rate / total_rate for rate in rates],
+            )
+
+            patient_type = patient_types[selected_index]
+
+            arrivals.append(
+                (current_time, patient_type)
+            )
+
+        return arrivals
+
+

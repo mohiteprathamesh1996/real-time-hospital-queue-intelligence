@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from simulator.arrival_process import PoissonArrivalProcess
+from simulator.event_models import PatientType
 from config.settings import load_config
 
 
@@ -186,3 +187,40 @@ def test_generate_arrivals_can_cross_rate_boundary():
     )
 
     assert arrivals == sorted(arrivals)
+
+def test_arrivals_are_assigned_patient_types():
+    config = load_config("config/hospital.yaml")
+
+    process = PoissonArrivalProcess.from_config(
+        config,
+        seed=42,
+    )
+
+    start_time = datetime(
+        2026,
+        9,
+        3,
+        8,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    end_time = start_time + timedelta(hours=1)
+
+    arrivals = process.generate_patient_arrivals(
+        start_time=start_time,
+        end_time=end_time,
+        patient_type_rates={
+            PatientType.OUTPATIENT: 35,
+            PatientType.INPATIENT: 15,
+            PatientType.WALK_IN: 10,
+            PatientType.FOLLOW_UP: 8,
+        },
+    )
+
+    assert len(arrivals) > 0
+
+    assert all(
+        patient_type in PatientType
+        for _, patient_type in arrivals
+    )
