@@ -1,0 +1,88 @@
+hospital:
+  name: "Demo General Hospital"
+  timezone: "Asia/Dubai"
+
+labs:
+  - lab_id: "LAB_A"
+    name: "Main Phlebotomy Lab"
+    stations: 4
+    operating_hours:
+      start: "06:00"
+      end: "18:00"
+
+  - lab_id: "LAB_B"
+    name: "Outpatient Phlebotomy Lab"
+    stations: 3
+    operating_hours:
+      start: "07:00"
+      end: "16:00"
+
+patient_profiles:
+  outpatient:
+    arrival_rate_per_hour: 35
+    service_time_mean_minutes: 5
+    service_time_std_minutes: 1.5
+    no_show_rate: 0.08
+    cancellation_rate: 0.03
+
+  inpatient:
+    arrival_rate_per_hour: 15
+    service_time_mean_minutes: 6
+    service_time_std_minutes: 2
+    no_show_rate: 0.01
+    cancellation_rate: 0.01
+
+  walk_in:
+    arrival_rate_per_hour: 10
+    service_time_mean_minutes: 7
+    service_time_std_minutes: 2
+    no_show_rate: 0.0
+    cancellation_rate: 0.0
+
+  follow_up:
+    arrival_rate_per_hour: 8
+    service_time_mean_minutes: 4
+    service_time_std_minutes: 1
+    no_show_rate: 0.05
+    cancellation_rate: 0.02
+
+priorities:
+  normal:
+    probability: 0.80
+
+  urgent:
+    probability: 0.08
+
+  pediatric:
+    probability: 0.07
+
+  elderly:
+    probability: 0.05
+
+simulation:
+  start_time: "2026-09-03T06:00:00+04:00"
+  duration_hours: 12
+  default_arrival_rate_per_hour: 10
+
+  arrival_rate_schedule:
+    - start_hour: 6
+      end_hour: 8
+      rate_per_hour: 20
+
+    - start_hour: 8
+      end_hour: 11
+      rate_per_hour: 45
+
+    - start_hour: 11
+      end_hour: 14
+      rate_per_hour: 30
+
+    - start_hour: 14
+      end_hour: 18
+      rate_per_hour: 15
+
+  fault_injection:
+    duplicate_rate: 0.01
+    late_event_rate: 0.03
+    malformed_event_rate: 0.005
+    out_of_order_rate: 0.02

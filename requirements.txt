@@ -1,0 +1,6 @@
+pydantic 
+pyyaml 
+jinja2 
+faker 
+numpy 
+pandas
