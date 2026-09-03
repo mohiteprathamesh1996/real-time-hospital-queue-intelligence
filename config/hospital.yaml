@@ -19,28 +19,28 @@ labs:
 
 patient_profiles:
   outpatient:
-    arrival_rate_per_hour: 35
+    arrival_weight: 35
     service_time_mean_minutes: 5
     service_time_std_minutes: 1.5
     no_show_rate: 0.08
     cancellation_rate: 0.03
 
   inpatient:
-    arrival_rate_per_hour: 15
+    arrival_weight: 15
     service_time_mean_minutes: 6
     service_time_std_minutes: 2
     no_show_rate: 0.01
     cancellation_rate: 0.01
 
   walk_in:
-    arrival_rate_per_hour: 10
+    arrival_weight: 10
     service_time_mean_minutes: 7
     service_time_std_minutes: 2
     no_show_rate: 0.0
     cancellation_rate: 0.0
 
   follow_up:
-    arrival_rate_per_hour: 8
+    arrival_weight: 8
     service_time_mean_minutes: 4
     service_time_std_minutes: 1
     no_show_rate: 0.05

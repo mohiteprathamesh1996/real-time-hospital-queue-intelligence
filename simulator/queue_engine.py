@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from heapq import heappop, heappush
 from simulator.event_models import PatientType, Priority
+from simulator.service_process import ServiceTimeGenerator
 
 from uuid import uuid4
 
@@ -15,6 +16,7 @@ from simulator.event_models import (
 @dataclass
 class QueuePatient:
     patient_id: str
+    arrival_time: datetime
     queue_time: datetime
     service_duration_minutes: float
     lab_id: str
@@ -37,11 +39,16 @@ class ServiceAssignment:
 class QueueEngine:
     """Simulate a multi-station service queue."""
 
-    def __init__(self, station_count: int):
+    def __init__(
+        self,
+        station_count: int,
+        service_time_generator: ServiceTimeGenerator | None = None,
+    ):
         if station_count < 1:
             raise ValueError("station_count must be at least 1")
 
         self.station_count = station_count
+        self.service_time_generator = service_time_generator
 
     def assign_patients(
             
@@ -155,3 +162,36 @@ class QueueEngine:
         ]
 
         return events
+
+
+    def create_queue_patient(
+        self,
+        patient_id: str,
+        arrival_time: datetime,
+        queue_time: datetime,
+        lab_id: str,
+        patient_type: PatientType,
+        priority: Priority,
+    ) -> QueuePatient:
+        """Create a queue patient with a generated service duration."""
+
+        if self.service_time_generator is None:
+            raise ValueError(
+                "A ServiceTimeGenerator is required to create queue patients."
+            )
+
+        service_duration = (
+            self.service_time_generator.generate_service_time(patient_type)
+        )
+
+        return QueuePatient(
+            patient_id=patient_id,
+            arrival_time=arrival_time,
+            queue_time=queue_time,
+            service_duration_minutes=service_duration,
+            lab_id=lab_id,
+            patient_type=patient_type,
+            priority=priority,
+        )
+
+    

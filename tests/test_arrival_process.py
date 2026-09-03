@@ -224,3 +224,36 @@ def test_arrivals_are_assigned_patient_types():
         patient_type in PatientType
         for _, patient_type in arrivals
     )
+
+def test_next_rate_boundary():
+    process = PoissonArrivalProcess(
+        rate_per_hour=10,
+        seed=42,
+        rate_schedule=[
+            (6, 8, 20),
+            (8, 11, 45),
+            (11, 14, 30),
+            (14, 18, 15),
+        ],
+    )
+
+    current_time = datetime(
+        2026,
+        9,
+        3,
+        7,
+        55,
+        tzinfo=timezone.utc,
+    )
+
+    boundary = process.get_next_rate_boundary(current_time)
+
+    assert boundary == datetime(
+        2026,
+        9,
+        3,
+        8,
+        0,
+        tzinfo=timezone.utc,
+    )
+

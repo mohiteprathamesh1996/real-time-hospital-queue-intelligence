@@ -54,18 +54,53 @@ class PoissonArrivalProcess:
 
         return self.rate_per_hour
 
+    def get_next_rate_boundary(
+        self,
+        current_time: datetime,
+    ) -> datetime | None:
+        """Return the next configured arrival-rate boundary."""
+
+        boundaries = []
+
+        for start_hour, end_hour, _ in self.rate_schedule:
+            for hour in (start_hour, end_hour):
+                boundary = current_time.replace(
+                    hour=hour,
+                    minute=0,
+                    second=0,
+                    microsecond=0,
+                )
+
+                if boundary <= current_time:
+                    boundary += timedelta(days=1)
+
+                boundaries.append(boundary)
+
+        return min(boundaries) if boundaries else None
+
     def next_arrival_time(self, current_time: datetime) -> datetime:
-        """Generate the timestamp of the next arrival."""
+        """Generate the next arrival using the time-varying arrival rate."""
 
-        rate = self.get_rate_per_hour(current_time)
+        while True:
+            rate = self.get_rate_per_hour(current_time)
 
-        interarrival_hours = self.rng.exponential(
-            scale=1 / rate
-        )
+            interarrival_hours = self.rng.exponential(
+                scale=1 / rate
+            )
 
-        return current_time + timedelta(
-            hours=interarrival_hours
-        )
+            candidate_time = current_time + timedelta(
+                hours=interarrival_hours
+            )
+
+            next_boundary = self.get_next_rate_boundary(current_time)
+
+            if next_boundary is None:
+                return candidate_time
+
+            if candidate_time < next_boundary:
+                return candidate_time
+
+            current_time = next_boundary
 
     def generate_arrivals(
         self,
@@ -96,38 +131,56 @@ class PoissonArrivalProcess:
         end_time: datetime,
         patient_type_rates: dict[PatientType, float],
     ) -> list[tuple[datetime, PatientType]]:
-        """Generate arrivals and assign each one a patient type."""
+        """Generate arrivals using time-varying total demand and patient mix."""
 
         if not patient_type_rates:
             raise ValueError("patient_type_rates must not be empty")
 
-        total_rate = sum(patient_type_rates.values())
+        total_mix_weight = sum(patient_type_rates.values())
 
-        if total_rate <= 0:
-            raise ValueError("Total patient arrival rate must be greater than 0")
+        if total_mix_weight <= 0:
+            raise ValueError(
+                "Total patient-type weight must be greater than 0"
+            )
+
+        patient_types = list(patient_type_rates.keys())
+
+        probabilities = [
+            patient_type_rates[patient_type] / total_mix_weight
+            for patient_type in patient_types
+        ]
 
         arrivals: list[tuple[datetime, PatientType]] = []
 
         current_time = start_time
 
-        while True:
+        while current_time < end_time:
+            rate = self.get_rate_per_hour(current_time)
+
             interarrival_hours = self.rng.exponential(
-                scale=1 / total_rate
+                scale=1 / rate
             )
 
-            current_time = current_time + timedelta(
+            candidate_time = current_time + timedelta(
                 hours=interarrival_hours
             )
 
-            if current_time > end_time:
+            next_boundary = self.get_next_rate_boundary(
+                current_time
+            )
+
+            if next_boundary is not None and candidate_time >= next_boundary:
+                current_time = next_boundary
+                continue
+
+            if candidate_time > end_time:
                 break
 
-            patient_types = list(patient_type_rates.keys())
-            rates = list(patient_type_rates.values())
+            current_time = candidate_time
 
             selected_index = self.rng.choice(
                 len(patient_types),
-                p=[rate / total_rate for rate in rates],
+                p=probabilities,
             )
 
             patient_type = patient_types[selected_index]
@@ -138,4 +191,16 @@ class PoissonArrivalProcess:
 
         return arrivals
 
+    def get_patient_type_weights(
+        self,
+        config: AppConfig,
+    ) -> dict[PatientType, float]:
+        """Return patient-type weights from hospital configuration."""
+
+        return {
+            PatientType.OUTPATIENT: config.patient_profiles["outpatient"].arrival_weight,
+            PatientType.INPATIENT: config.patient_profiles["inpatient"].arrival_weight,
+            PatientType.WALK_IN: config.patient_profiles["walk_in"].arrival_weight,
+            PatientType.FOLLOW_UP: config.patient_profiles["follow_up"].arrival_weight,
+        }
 

@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 from simulator.event_models import PatientType, Priority, EventType
 from simulator.queue_engine import QueueEngine, QueuePatient
-
+from config.settings import load_config
+from simulator.service_process import ServiceTimeGenerator
 
 def test_all_patients_start_immediately_when_stations_are_available():
     queue_time = datetime(
@@ -14,8 +15,9 @@ def test_all_patients_start_immediately_when_stations_are_available():
     )
 
     patients = [
-        QueuePatient(
+                QueuePatient(
             patient_id=f"PAT_{i}",
+            arrival_time=queue_time,
             queue_time=queue_time,
             service_duration_minutes=10,
             lab_id="LAB_A",
@@ -46,13 +48,14 @@ def test_fifth_patient_waits_when_four_stations_are_busy():
 
     patients = [
         QueuePatient(
-            patient_id=f"PAT_{i}",
-            queue_time=queue_time,
-            service_duration_minutes=10,
-            lab_id="LAB_A",
-            patient_type=PatientType.OUTPATIENT,
-            priority=Priority.NORMAL,
-        )
+    patient_id=f"PAT_{i}",
+    arrival_time=queue_time,
+    queue_time=queue_time,
+    service_duration_minutes=10,
+    lab_id="LAB_A",
+    patient_type=PatientType.OUTPATIENT,
+    priority=Priority.NORMAL,
+)
         for i in range(5)
     ]
 
@@ -98,13 +101,14 @@ def test_generate_service_events():
     )
 
     patient = QueuePatient(
-        patient_id="PAT_001",
-        queue_time=queue_time,
-        service_duration_minutes=10,
-        lab_id="LAB_A",
-        patient_type=PatientType.OUTPATIENT,
-        priority=Priority.NORMAL,
-    )
+    patient_id="PAT_001",
+    arrival_time=queue_time,
+    queue_time=queue_time,
+    service_duration_minutes=10,
+    lab_id="LAB_A",
+    patient_type=PatientType.OUTPATIENT,
+    priority=Priority.NORMAL,
+)
 
     engine = QueueEngine(station_count=4)
 
@@ -131,3 +135,41 @@ def test_generate_service_events():
     assert events[0].event_time == assignment.service_start
     assert events[2].event_time == assignment.service_end
     assert events[3].event_time == assignment.service_end
+
+
+
+def test_queue_engine_creates_patient_with_service_time():
+    config = load_config("config/hospital.yaml")
+
+    service_generator = ServiceTimeGenerator(
+        config,
+        seed=42,
+    )
+
+    queue_time = datetime(
+    2026,
+    9,
+    3,
+    8,
+    0,
+    tzinfo=timezone.utc,
+)
+
+    engine = QueueEngine(
+        station_count=4,
+        service_time_generator=service_generator,
+    )
+
+    patient = engine.create_queue_patient(
+    patient_id="PAT_001",
+    arrival_time=queue_time,
+    queue_time=queue_time,
+    lab_id="LAB_A",
+    patient_type=PatientType.OUTPATIENT,
+    priority=Priority.NORMAL,
+)
+
+    assert patient.patient_id == "PAT_001"
+    assert patient.lab_id == "LAB_A"
+    assert patient.service_duration_minutes > 0
+

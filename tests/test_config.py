@@ -11,7 +11,7 @@ def test_hospital_config_loads():
     assert config.labs[0].lab_id == "LAB_A"
     assert config.labs[0].stations == 4
 
-    assert config.patient_profiles["outpatient"].arrival_rate_per_hour == 35
+    assert config.patient_profiles["outpatient"].arrival_weight == 35
 
 
 def test_fault_injection_config():

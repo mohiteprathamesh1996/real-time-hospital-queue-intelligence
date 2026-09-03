@@ -17,7 +17,7 @@ class LabConfig(BaseModel):
 
 
 class PatientProfile(BaseModel):
-    arrival_rate_per_hour: float
+    arrival_weight: float
     service_time_mean_minutes: float
     service_time_std_minutes: float
     no_show_rate: float
