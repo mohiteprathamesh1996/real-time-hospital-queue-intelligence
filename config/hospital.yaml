@@ -86,3 +86,10 @@ simulation:
     late_event_rate: 0.03
     malformed_event_rate: 0.005
     out_of_order_rate: 0.02
+
+staffing:
+  minimum_staff: 2
+  maximum_staff: 5
+  hourly_cost_per_staff: 35
+  queue_sla_minutes: 15
+  target_sla_percentage: 95

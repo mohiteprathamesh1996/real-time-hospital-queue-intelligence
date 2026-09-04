@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-
+import pytest
 from simulator.metrics import PatientMetrics
 from simulator.queue_state import QueueStateCalculator
 
@@ -144,3 +144,83 @@ def test_queue_state_counts_multiple_waiting_patients():
     )
 
     assert state.patients_waiting == 3
+
+
+def test_queue_state_returns_zero_for_empty_patient_list():
+
+    calculator = QueueStateCalculator()
+
+    state = calculator.calculate(
+        patient_metrics=[],
+        lab_id="LAB_A",
+        timestamp=datetime(
+            2026,
+            9,
+            3,
+            8,
+            10,
+            tzinfo=timezone.utc,
+        ),
+    )
+
+    assert state.patients_waiting == 0
+
+
+def test_queue_state_does_not_count_patient_at_service_start():
+
+    patients = [
+        create_patient(
+            "PAT_001",
+            queue_entry_minutes=0,
+            service_start_minutes=15,
+        )
+    ]
+
+    calculator = QueueStateCalculator()
+
+    state = calculator.calculate(
+        patient_metrics=patients,
+        lab_id="LAB_A",
+        timestamp=datetime(
+            2026,
+            9,
+            3,
+            8,
+            15,
+            tzinfo=timezone.utc,
+        ),
+    )
+
+    assert state.patients_waiting == 0
+
+
+def test_queue_state_rejects_invalid_time_range():
+
+    calculator = QueueStateCalculator()
+
+    with pytest.raises(ValueError):
+        calculator.calculate_series(
+            patient_metrics=[],
+            lab_id="LAB_A",
+            start_time=datetime(
+                2026,
+                9,
+                3,
+                9,
+                0,
+                tzinfo=timezone.utc,
+            ),
+            end_time=datetime(
+                2026,
+                9,
+                3,
+                8,
+                0,
+                tzinfo=timezone.utc,
+            ),
+            window_minutes=30,
+        )
+
+
+
+
