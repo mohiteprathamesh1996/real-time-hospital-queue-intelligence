@@ -4,3 +4,9 @@ venv/
 .env.exmple
 .pytest_cache/
 config/__pycache__/
+data/
+checkpoints/
+scripts/__pycache__/
+streaming/__pycache__/
+decision_engine/__pycache__/
+tests/__pycache__/
