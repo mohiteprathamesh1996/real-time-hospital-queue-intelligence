@@ -62,7 +62,6 @@ class AppConfig(BaseModel):
     simulation: SimulationConfig
     staffing: StaffingConfig
 
-
 def load_config(path: str | Path) -> AppConfig:
     """Load and validate hospital configuration."""
 
