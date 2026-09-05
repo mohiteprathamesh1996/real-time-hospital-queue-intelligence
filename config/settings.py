@@ -51,6 +51,8 @@ class HospitalConfig(BaseModel):
     name: str
     timezone: str
 
+class StaffingConfig(BaseModel):
+    incremental_staff_hour_cost: float = 35.0
 
 class AppConfig(BaseModel):
     hospital: HospitalConfig
@@ -58,6 +60,7 @@ class AppConfig(BaseModel):
     patient_profiles: dict[str, PatientProfile]
     priorities: dict[str, PriorityConfig]
     simulation: SimulationConfig
+    staffing: StaffingConfig
 
 
 def load_config(path: str | Path) -> AppConfig:

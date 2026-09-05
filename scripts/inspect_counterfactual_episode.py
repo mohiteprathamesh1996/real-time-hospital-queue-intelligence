@@ -4,7 +4,10 @@ from config.settings import load_config
 from decision_engine.counterfactual_engine import (
     CounterfactualStaffingEngine,
 )
-from simulator.simpy_engine import InitialService
+from simulator.simpy_engine import (
+    InitialService,
+    InitialWaitingPatient,
+)
 from streaming.spark_session import create_spark_session
 
 
@@ -15,8 +18,8 @@ EPISODE_START = datetime.fromisoformat(
 )
 
 LOOKAHEAD_MINUTES = 30
-
 BASELINE_STAFF = 4
+MAX_ADDITIONAL_STAFF = 6
 
 
 def main():
@@ -46,36 +49,52 @@ def main():
     )
 
     # ------------------------------------------------------------
-    # 1. Patients already waiting at decision time
+    # Patients already waiting
     # ------------------------------------------------------------
 
     waiting_rows = (
         patients
         .filter(
             (patients.queue_entry_time <= EPISODE_START)
-            & (patients.service_start_time > EPISODE_START)
+            & (
+                patients.service_start_time
+                > EPISODE_START
+            )
         )
         .orderBy("queue_entry_time")
         .collect()
     )
 
     initial_waiting = [
-        (
-            row["patient_type"],
-            float(row["service_minutes"]),
+        InitialWaitingPatient(
+            patient_type=row["patient_type"],
+            service_duration_minutes=float(
+                row["service_minutes"]
+            ),
+            accrued_wait_minutes=(
+                EPISODE_START
+                - row["queue_entry_time"]
+            ).total_seconds()
+            / 60.0,
         )
         for row in waiting_rows
     ]
 
     # ------------------------------------------------------------
-    # 2. Patients already in service at decision time
+    # Patients already in service
     # ------------------------------------------------------------
 
     service_rows = (
         patients
         .filter(
-            (patients.service_start_time <= EPISODE_START)
-            & (patients.service_end_time > EPISODE_START)
+            (
+                patients.service_start_time
+                <= EPISODE_START
+            )
+            & (
+                patients.service_end_time
+                > EPISODE_START
+            )
         )
         .orderBy("service_start_time")
         .collect()
@@ -86,20 +105,27 @@ def main():
             remaining_service_minutes=(
                 row["service_end_time"]
                 - EPISODE_START
-            ).total_seconds() / 60.0
+            ).total_seconds()
+            / 60.0
         )
         for row in service_rows
     ]
 
     # ------------------------------------------------------------
-    # 3. Future arrivals during the lookahead window
+    # Future arrivals
     # ------------------------------------------------------------
 
     future_rows = (
         patients
         .filter(
-            (patients.arrival_time >= EPISODE_START)
-            & (patients.arrival_time < episode_end)
+            (
+                patients.arrival_time
+                >= EPISODE_START
+            )
+            & (
+                patients.arrival_time
+                < episode_end
+            )
         )
         .orderBy("arrival_time")
         .collect()
@@ -110,7 +136,8 @@ def main():
             (
                 row["arrival_time"]
                 - EPISODE_START
-            ).total_seconds() / 60.0,
+            ).total_seconds()
+            / 60.0,
             row["patient_type"],
         )
         for row in future_rows
@@ -124,14 +151,14 @@ def main():
     ]
 
     # ------------------------------------------------------------
-    # Counterfactual engine
+    # Counterfactual recommendation
     # ------------------------------------------------------------
 
     engine = CounterfactualStaffingEngine(
         config=config,
         baseline_staff=BASELINE_STAFF,
-        queue_sla_minutes=15,
-        target_sla_percentage=95,
+        queue_sla_minutes=15.0,
+        target_sla_percentage=95.0,
     )
 
     recommendation, scenarios = (
@@ -140,7 +167,9 @@ def main():
             service_durations=service_durations,
             initial_waiting=initial_waiting,
             initial_services=initial_services,
-            max_additional_staff=3,
+            max_additional_staff=(
+                MAX_ADDITIONAL_STAFF
+            ),
         )
     )
 
@@ -153,27 +182,33 @@ def main():
     print("=" * 100)
 
     print(
-        f"Episode start:        {EPISODE_START}"
+        f"Episode start:        "
+        f"{EPISODE_START}"
     )
 
     print(
-        f"Lookahead window:     {LOOKAHEAD_MINUTES} minutes"
+        f"Lookahead window:     "
+        f"{LOOKAHEAD_MINUTES} minutes"
     )
 
     print(
-        f"Initially waiting:    {len(initial_waiting)}"
+        f"Initially waiting:    "
+        f"{len(initial_waiting)}"
     )
 
     print(
-        f"Initially in service: {len(initial_services)}"
+        f"Initially in service: "
+        f"{len(initial_services)}"
     )
 
     print(
-        f"Future arrivals:      {len(future_rows)}"
+        f"Future arrivals:      "
+        f"{len(future_rows)}"
     )
 
     print(
-        f"Baseline staff:       {BASELINE_STAFF}"
+        f"Baseline staff:       "
+        f"{BASELINE_STAFF}"
     )
 
     print()
@@ -210,32 +245,56 @@ def main():
 
     print()
     print("=" * 100)
-    print("RECOMMENDATION")
+    print("DECISION")
     print("=" * 100)
 
-    if recommendation is None:
-        print(
-            "No tested staffing scenario restored the SLA."
+    print(
+        f"Decision:                 "
+        f"{recommendation.decision}"
+    )
+
+    print(
+        f"Already breached:         "
+        f"{recommendation.already_breached_patients}"
+    )
+
+    print(
+        f"Maximum possible SLA:     "
+        f"{recommendation.maximum_possible_sla_percentage:.1f}%"
+    )
+
+    print(
+        f"Reason:                   "
+        f"{recommendation.reason}"
+    )
+
+    if (
+        recommendation.recommended_result
+        is not None
+    ):
+        result = (
+            recommendation.recommended_result
         )
-    else:
+
+        print()
         print(
-            f"Deploy +{recommendation.additional_staff} "
-            f"staff member(s)"
+            f"Recommended additional:   "
+            f"+{result.additional_staff}"
         )
 
         print(
-            f"Total staff:       "
-            f"{recommendation.staff_count}"
+            f"Recommended total staff:  "
+            f"{result.staff_count}"
         )
 
         print(
-            f"Expected SLA:      "
-            f"{recommendation.sla_percentage:.1f}%"
+            f"Expected SLA:              "
+            f"{result.sla_percentage:.1f}%"
         )
 
         print(
-            f"Expected P95 wait: "
-            f"{recommendation.p95_wait_minutes:.2f} minutes"
+            f"Expected P95 wait:         "
+            f"{result.p95_wait_minutes:.2f} minutes"
         )
 
     spark.stop()

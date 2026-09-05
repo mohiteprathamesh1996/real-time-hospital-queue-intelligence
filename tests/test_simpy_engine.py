@@ -1,7 +1,12 @@
+import pytest
+from config.settings import load_config
 from simulator.event_models import PatientType
 from simulator.service_process import ServiceTimeGenerator
-from simulator.simpy_engine import SimPyQueueEngine
-from config.settings import load_config
+from simulator.simpy_engine import (
+    InitialService,
+    InitialWaitingPatient,
+    SimPyQueueEngine,
+)
 
 
 class FixedServiceTimeGenerator:
@@ -235,3 +240,47 @@ def test_service_times_are_consistent_across_staffing_levels():
     assert service_times_4 == expected_service_times
     assert service_times_2 == service_times_4
 
+
+def test_initial_waiting_patient_preserves_accrued_wait():
+    config = load_config(
+        "config/hospital.yaml"
+    )
+
+    engine = SimPyQueueEngine(
+        station_count=1,
+        service_time_generator=ServiceTimeGenerator(
+            config=config,
+            seed=42,
+        ),
+    )
+
+    initial_services = [
+        InitialService(
+            remaining_service_minutes=5.0,
+        )
+    ]
+
+    initial_waiting = [
+        InitialWaitingPatient(
+            patient_type=PatientType.OUTPATIENT,
+            service_duration_minutes=5.0,
+            accrued_wait_minutes=12.0,
+        )
+    ]
+
+    results = engine.run(
+        arrivals=[],
+        service_durations=[],
+        initial_waiting=initial_waiting,
+        initial_services=initial_services,
+    )
+
+    assert len(results) == 1
+
+    assert (
+        results[0].queue_wait_minutes
+        == pytest.approx(
+            17.0,
+            abs=0.01,
+        )
+    )

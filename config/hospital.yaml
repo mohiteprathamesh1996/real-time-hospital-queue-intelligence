@@ -2,6 +2,7 @@ hospital:
   name: "Demo General Hospital"
   timezone: "Asia/Dubai"
 
+
 labs:
   - lab_id: "LAB_A"
     name: "Main Phlebotomy Lab"
@@ -16,6 +17,7 @@ labs:
     operating_hours:
       start: "07:00"
       end: "16:00"
+
 
 patient_profiles:
   outpatient:
@@ -46,6 +48,7 @@ patient_profiles:
     no_show_rate: 0.05
     cancellation_rate: 0.02
 
+
 priorities:
   normal:
     probability: 0.80
@@ -58,6 +61,7 @@ priorities:
 
   elderly:
     probability: 0.05
+
 
 simulation:
   start_time: "2026-09-03T06:00:00+04:00"
@@ -87,9 +91,13 @@ simulation:
     malformed_event_rate: 0.005
     out_of_order_rate: 0.02
 
+
 staffing:
   minimum_staff: 2
   maximum_staff: 5
-  hourly_cost_per_staff: 35
-  queue_sla_minutes: 15
-  target_sla_percentage: 95
+
+  hourly_cost_per_staff: 35.0
+  incremental_staff_hour_cost: 35.0
+
+  queue_sla_minutes: 15.0
+  target_sla_percentage: 95.0
